@@ -29,10 +29,10 @@ pacman_packages="libtorrent-rasterbar openssl python-chardet python-dbus python-
 if [[ ! -z "${pacman_packages}" ]]; then
 	pacman -S --needed $pacman_packages --noconfirm
 fi
-
-pacman-key --recv-keys A5E9288C4FA415FA 
-pacman-key --lsign-key A5E9288C4FA415FA
-pacman -U https://archive.archlinux.org/packages/d/deluge/deluge-2.0.3+23+g5f1eada3e-1-any.pkg.tar.xz  --noconfirm
+# Quick hack as archlinux keyring is missing, might be unsafe
+pacman-key --recv-keys 786C63F330D7CB92
+pacman-key --lsign-key 786C63F330D7CB92
+pacman -U https://archive.archlinux.org/packages/d/deluge/deluge-2.0.3-2-any.pkg.tar.xz  --noconfirm
 
 # aur packages
 ####
