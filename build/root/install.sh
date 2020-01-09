@@ -19,10 +19,11 @@ mv /tmp/scripts-master/shell/arch/docker/*.sh /usr/local/bin/
 ####
 
 # call pacman db and package updater script
-source upd.sh
+#source upd.sh
+pacman -Syyu --noconfirm
 
 # define pacman packages
-pacman_packages="libtorrent-rasterbar openssl python-chardet python-dbus python-distro python-geoip python-idna python-mako python-pillow python-pyopenssl python-rencode python-service-identity python-setproctitle python-six python-future python-requests python-twisted python-xdg python-zope-interface xdg-utils libappindicator-gtk3 deluge"
+pacman_packages="libtorrent-rasterbar openssl python-chardet python-dbus python-distro python-geoip python-idna python-mako python-pillow python-pyopenssl python-rencode python-service-identity python-setproctitle python-six python-future python-requests python-twisted python-xdg python-zope-interface xdg-utils libappindicator-gtk3 procps-ng deluge"
 
 # install compiled packages using pacman
 if [[ ! -z "${pacman_packages}" ]]; then
@@ -33,10 +34,10 @@ fi
 ####
 
 # define aur packages
-aur_packages=""
+#aur_packages=""
 
 # call aur install script (arch user repo)
-source aur.sh
+#source aur.sh
 
 # tweaks
 ####
