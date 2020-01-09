@@ -23,12 +23,16 @@ mv /tmp/scripts-master/shell/arch/docker/*.sh /usr/local/bin/
 pacman -Syyu --noconfirm
 
 # define pacman packages
-pacman_packages="libtorrent-rasterbar openssl python-chardet python-dbus python-distro python-geoip python-idna python-mako python-pillow python-pyopenssl python-rencode python-service-identity python-setproctitle python-six python-future python-requests python-twisted python-xdg python-zope-interface xdg-utils libappindicator-gtk3 procps-ng deluge"
+pacman_packages="libtorrent-rasterbar openssl python-chardet python-dbus python-distro python-geoip python-idna python-mako python-pillow python-pyopenssl python-rencode python-service-identity python-setproctitle python-six python-future python-requests python-twisted python-xdg python-zope-interface xdg-utils libappindicator-gtk3 procps-ng"
 
 # install compiled packages using pacman
 if [[ ! -z "${pacman_packages}" ]]; then
 	pacman -S --needed $pacman_packages --noconfirm
 fi
+
+pacman-key --recv-keys A5E9288C4FA415FA 
+pacman-key --lsign-key A5E9288C4FA415FA
+pacman -U https://archive.archlinux.org/packages/d/deluge/deluge-2.0.3+23+g5f1eada3e-1-any.pkg.tar.xz  --noconfirm
 
 # aur packages
 ####
