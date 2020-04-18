@@ -1,3 +1,4 @@
+Full credit to binhex and ledokun for this reworked Deluge 2 Docker image for armhf devices
 **Application**
 
 [Deluge website](http://deluge-torrent.org/)  
