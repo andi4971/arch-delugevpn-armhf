@@ -76,6 +76,10 @@ chmod -R 775 ${install_paths}
 # set permissions for python eggs to be a more restrictive 755, this prevents the warning message thrown by deluge on startup
 mkdir -p /home/nobody/.cache/Python-Eggs ; chmod -R 755 /home/nobody/.cache/Python-Eggs
 
+# disable built-in Deluge Plugin 'stats', as its currently broken in Deluge 2.x and causes log spam
+# see here for details https://dev.deluge-torrent.org/ticket/3310
+chmod 000 "/usr/lib/python3.8/site-packages/deluge/plugins/Stats-0.4-py3.8.egg"
+
 # create file with contents of here doc, note EOF is NOT quoted to allow us to expand current variable 'install_paths'
 # we use escaping to prevent variable expansion for PUID and PGID, as we want these expanded at runtime of init.sh
 cat <<EOF > /tmp/permissions_heredoc
@@ -312,6 +316,13 @@ if [[ $VPN_ENABLED == "yes" ]]; then
 	else
 		echo "[warn] ENABLE_PRIVOXY not defined (via -e ENABLE_PRIVOXY), defaulting to 'no'" | ts '%Y-%m-%d %H:%M:%.S'
 		export ENABLE_PRIVOXY="no"
+	fi
+
+	export ADDITIONAL_PORTS=$(echo "${ADDITIONAL_PORTS}" | sed -e 's~^[ \t]*~~;s~[ \t]*$~~')
+	if [[ ! -z "${ADDITIONAL_PORTS}" ]]; then
+			echo "[info] ADDITIONAL_PORTS defined as '${ADDITIONAL_PORTS}'" | ts '%Y-%m-%d %H:%M:%.S'
+	else
+			echo "[info] ADDITIONAL_PORTS not defined (via -e ADDITIONAL_PORTS), skipping allow for custom incoming ports" | ts '%Y-%m-%d %H:%M:%.S'
 	fi
 
 	export APPLICATION="deluge"
