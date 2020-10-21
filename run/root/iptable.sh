@@ -1,17 +1,13 @@
 #!/bin/bash
 
-# change openvpn config 'tcp-client' to compatible iptables 'tcp'
-if [[ "${VPN_PROTOCOL}" == "tcp-client" ]]; then
-	export VPN_PROTOCOL="tcp"
-fi
-
-# identify docker bridge interface name by looking at routing to
-# vpn provider remote endpoint (first ip address from name 
-# lookup in /root/start.sh)
-docker_interface=$(ip route show to match "${remote_dns_answer_first}" | grep -P -o -m 1 '[a-zA-Z0-9]+\s?+$' | tr -d '[:space:]')
+# identify docker bridge interface name by looking at defult route
+docker_interface=$(ip -4 route ls | grep default | xargs | grep -o -P '[^\s]+$')
 if [[ "${DEBUG}" == "true" ]]; then
 	echo "[debug] Docker interface defined as ${docker_interface}"
 fi
+# identify ip for local gateway (eth0)
+default_gateway=$(ip route show default | awk '/default/ {print $3}')
+echo "[info] Default route for container is ${default_gateway}"
 
 # identify ip for docker bridge interface
 docker_ip=$(ifconfig "${docker_interface}" | grep -P -o -m 1 '(?<=inet\s)[^\s]+')
@@ -42,7 +38,7 @@ for lan_network_item in "${lan_network_list[@]}"; do
 	lan_network_item=$(echo "${lan_network_item}" | sed -e 's~^[ \t]*~~;s~[ \t]*$~~')
 
 	echo "[info] Adding ${lan_network_item} as route via docker ${docker_interface}"
-	ip route add "${lan_network_item}" via "${DEFAULT_GATEWAY}" dev "${docker_interface}"
+	ip route add "${lan_network_item}" via "${default_gateway}" dev "${docker_interface}"
 
 done
 
@@ -60,18 +56,24 @@ fi
 
 # check we have iptable_mangle, if so setup fwmark
 lsmod | grep iptable_mangle
-iptable_mangle_exit_code=$?
+iptable_mangle_exit_code="${?}"
 
-if [[ $iptable_mangle_exit_code == 0 ]]; then
+if [[ "${iptable_mangle_exit_code}" == 0 ]]; then
 
 	echo "[info] iptable_mangle support detected, adding fwmark for tables"
 
 	# setup route for deluge webui using set-mark to route traffic for port 8112 to eth0
 	echo "8112    webui" >> /etc/iproute2/rt_tables
 	ip rule add fwmark 1 table webui
-	ip route add default via $DEFAULT_GATEWAY table webui
+	ip route add default via "${default_gateway}" table webui
 
 fi
+
+# split comma separated string into array from VPN_REMOTE_PROTOCOL env var
+IFS=',' read -ra vpn_remote_protocol_list <<< "${VPN_REMOTE_PROTOCOL}"
+
+# split comma separated string into array from VPN_REMOTE_PORT env var
+IFS=',' read -ra vpn_remote_port_list <<< "${VPN_REMOTE_PORT}"
 
 # input iptable rules
 ###
@@ -85,8 +87,24 @@ ip6tables -P INPUT DROP 1>&- 2>&-
 # accept input to/from docker containers (172.x range is internal dhcp)
 iptables -A INPUT -s "${docker_network_cidr}" -d "${docker_network_cidr}" -j ACCEPT
 
-# accept input to vpn gateway
-iptables -A INPUT -i "${docker_interface}" -p $VPN_PROTOCOL --sport $VPN_PORT -j ACCEPT
+# iterate over array and add all remote vpn ports and protocols
+for index in "${!vpn_remote_port_list[@]}"; do
+
+	# change openvpn config 'tcp-client' to compatible iptables 'tcp'
+	if [[ "${vpn_remote_protocol_list[$index]}" == "tcp-client" ]]; then
+		vpn_remote_protocol_list="tcp"
+	else
+		vpn_remote_protocol_list="${vpn_remote_protocol_list[$index]}"
+	fi
+
+	# note grep -e is required to indicate no flags follow to prevent -A from being incorrectly picked up
+	rule_exists=$(iptables -S | grep -e "-A INPUT -i "${docker_interface}" -p "${vpn_remote_protocol_list}" -m "${vpn_remote_protocol_list}" --sport "${vpn_remote_port_list[$index]}" -j ACCEPT")
+	if [[ -z "${rule_exists}" ]]; then
+		# accept input to vpn gateway
+		iptables -A INPUT -i "${docker_interface}" -p "${vpn_remote_protocol_list}" --sport "${vpn_remote_port_list[$index]}" -j ACCEPT
+	fi
+
+done
 
 # accept input to deluge Web UI port 8112
 iptables -A INPUT -i "${docker_interface}" -p tcp --dport 8112 -j ACCEPT
@@ -124,7 +142,7 @@ for lan_network_item in "${lan_network_list[@]}"; do
 	iptables -A INPUT -i "${docker_interface}" -s "${lan_network_item}" -p tcp --dport 58846 -j ACCEPT
 
 	# accept input to privoxy if enabled
-	if [[ $ENABLE_PRIVOXY == "yes" ]]; then
+	if [[ "${ENABLE_PRIVOXY}" == "yes" ]]; then
 		iptables -A INPUT -i "${docker_interface}" -p tcp -s "${lan_network_item}" -d "${docker_network_cidr}" -j ACCEPT
 	fi
 
@@ -160,11 +178,27 @@ ip6tables -P OUTPUT DROP 1>&- 2>&-
 # accept output to/from docker containers (172.x range is internal dhcp)
 iptables -A OUTPUT -s "${docker_network_cidr}" -d "${docker_network_cidr}" -j ACCEPT
 
-# accept output from vpn gateway
-iptables -A OUTPUT -o "${docker_interface}" -p $VPN_PROTOCOL --dport $VPN_PORT -j ACCEPT
+# iterate over array and add all remote vpn ports and protocols
+for index in "${!vpn_remote_port_list[@]}"; do
+
+	# change openvpn config 'tcp-client' to compatible iptables 'tcp'
+	if [[ "${vpn_remote_protocol_list[$index]}" == "tcp-client" ]]; then
+		vpn_remote_protocol_list="tcp"
+	else
+		vpn_remote_protocol_list="${vpn_remote_protocol_list[$index]}"
+	fi
+
+	# note grep -e is required to indicate no flags follow to prevent -A from being incorrectly picked up
+	rule_exists=$(iptables -S | grep -e "-A OUTPUT -o "${docker_interface}" -p "${vpn_remote_protocol_list}" -m "${vpn_remote_protocol_list}" --dport "${vpn_remote_port_list[$index]}" -j ACCEPT")
+	if [[ -z "${rule_exists}" ]]; then
+		# accept output from vpn gateway
+		iptables -A OUTPUT -o "${docker_interface}" -p "${vpn_remote_protocol_list}" --dport "${vpn_remote_port_list[$index]}" -j ACCEPT
+	fi
+
+done
 
 # if iptable mangle is available (kernel module) then use mark
-if [[ $iptable_mangle_exit_code == 0 ]]; then
+if [[ "${iptable_mangle_exit_code}" == 0 ]]; then
 
 	# accept output from deluge-web port 8112 - used for external access
 	iptables -t mangle -A OUTPUT -p tcp --dport 8112 -j MARK --set-mark 1
@@ -208,7 +242,7 @@ for lan_network_item in "${lan_network_list[@]}"; do
 	iptables -A OUTPUT -o "${docker_interface}" -d "${lan_network_item}" -p tcp --sport 58846 -j ACCEPT
 
 	# accept output from privoxy if enabled - used for lan access
-	if [[ $ENABLE_PRIVOXY == "yes" ]]; then
+	if [[ "${ENABLE_PRIVOXY}" == "yes" ]]; then
 		iptables -A OUTPUT -o "${docker_interface}" -p tcp -s "${docker_network_cidr}" -d "${lan_network_item}" -j ACCEPT
 	fi
 
@@ -228,8 +262,3 @@ echo "--------------------"
 iptables -S 2>&1 | tee /tmp/getiptables
 chmod +r /tmp/getiptables
 echo "--------------------"
-
-# change iptable 'tcp' to openvpn config compatible 'tcp-client' (this file is sourced)
-if [[ "${VPN_PROTOCOL}" == "tcp" ]]; then
-	export VPN_PROTOCOL="tcp-client"
-fi
