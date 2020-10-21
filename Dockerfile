@@ -1,4 +1,4 @@
-FROM doggosrocko/arch-openvpn-armhf:latest
+FROM doggosrocko/arch-vpn-armhf:latest
 MAINTAINER doggosrocko
 
 # additional files
