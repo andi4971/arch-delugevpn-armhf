@@ -26,14 +26,14 @@ ADD config/nobody/ /home/nobody/
 #############
 
 # For cross compile on dockerhub
-RUN ["docker-build-start"]
+#RUN ["docker-build-start"]
 
 # make executable and run bash scripts to install app
 RUN chmod +x /root/*.sh /home/nobody/*.sh /home/nobody/*.py && \
 	/bin/bash /root/install.sh
 
 # For cross compile on dockerhub
-RUN ["docker-build-end"]
+#RUN ["docker-build-end"]
 
 # docker settings
 #################
