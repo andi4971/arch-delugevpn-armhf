@@ -58,7 +58,7 @@ while true; do
 			fi
 
 			# check if deluged is running
-			if ! pgrep -fa "deluged" > /dev/null; then
+			if ! pgrep -x "deluged" > /dev/null; then
 
 				echo "[info] Deluge not running"
 
@@ -69,7 +69,7 @@ while true; do
 			fi
 
 			# check if deluge-web is running
-			if ! pgrep -fa "deluge-web" > /dev/null; then
+			if ! pgrep -x "deluge-web" > /dev/null; then
 
 				echo "[info] Deluge Web UI not running"
 
@@ -162,7 +162,7 @@ while true; do
 	else
 
 		# check if deluged is running
-		if ! pgrep -fa "deluged" > /dev/null; then
+		if ! pgrep -x "deluged" > /dev/null; then
 
 			echo "[info] Deluge not running"
 
@@ -173,7 +173,7 @@ while true; do
 		fi
 
 		# check if deluge-web is running
-		if ! pgrep -fa "deluge-web" > /dev/null; then
+		if ! pgrep -x "deluge-web" > /dev/null; then
 
 			echo "[info] Deluge Web UI not running"
 

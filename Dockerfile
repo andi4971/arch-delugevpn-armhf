@@ -10,8 +10,8 @@ ADD build/*.conf /etc/supervisor/conf.d/
 # add bash scripts to install app
 ADD build/root/*.sh /root/
 
-# add bash script to setup iptables
-ADD run/root/*.sh /root/
+# get release tag name from build arg
+ARG release_tag_name
 
 # add bash script to run deluge
 ADD run/nobody/*.sh /home/nobody/
@@ -30,19 +30,13 @@ RUN ["docker-build-start"]
 
 # make executable and run bash scripts to install app
 RUN chmod +x /root/*.sh /home/nobody/*.sh /home/nobody/*.py && \
-	/bin/bash /root/install.sh
+	/bin/bash /root/install.sh "${release_tag_name}"
 
 # For cross compile on dockerhub
 RUN ["docker-build-end"]
 
 # docker settings
 #################
-
-# map /config to host defined config path (used to store configuration from app)
-VOLUME /config
-
-# map /data to host defined data path (used to store data from app)
-VOLUME /data
 
 # expose port for deluge webui
 EXPOSE 8112

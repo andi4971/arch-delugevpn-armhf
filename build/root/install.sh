@@ -3,6 +3,9 @@
 # exit script if return code != 0
 set -e
 
+# release tag name from build arg, stripped of build ver using string manipulation
+release_tag_name="${1//-[0-9][0-9]/}"
+
 # note do NOT download build scripts - inherited from int script with envvars common defined
 
 # detect image arch
@@ -40,7 +43,7 @@ fi
 ####
 
 # define aur packages
-#aur_packages=""
+aur_packages="7-zip-bin"
 
 # call aur install script (arch user repo)
 #source aur.sh
@@ -54,10 +57,13 @@ mkdir -p /home/nobody/.cache/Python-Eggs
 # remove permissions for group and other from the Python-Eggs folder
 chmod -R 700 /home/nobody/.cache/Python-Eggs
 
+# change peerid to appear to be 2.0.3 stable - note this does not work for all/any private trackers at present
+sed -i -e "s~peer_id = substitute_chr(peer_id, 6, release_chr)~peer_id = \'-DE205s-\'\n        release_chr = \'s\'~g" /usr/lib/python3*/site-packages/deluge/core/core.py
+
 # container perms
 ####
 
-# define comma separated list of paths 
+# define comma separated list of paths
 install_paths="/etc/privoxy,/home/nobody"
 
 # split comma separated string into list for install paths
@@ -84,7 +90,7 @@ mkdir -p /home/nobody/.cache/Python-Eggs ; chmod -R 755 /home/nobody/.cache/Pyth
 
 # disable built-in Deluge Plugin 'stats', as its currently broken in Deluge 2.x and causes log spam
 # see here for details https://dev.deluge-torrent.org/ticket/3310
-chmod 000 "/usr/lib/python3.8/site-packages/deluge/plugins/Stats-0.4-py3.8.egg"
+chmod 000 /usr/lib/python3*/site-packages/deluge/plugins/Stats*.egg
 
 # create file with contents of here doc, note EOF is NOT quoted to allow us to expand current variable 'install_paths'
 # we use escaping to prevent variable expansion for PUID and PGID, as we want these expanded at runtime of init.sh
@@ -94,7 +100,7 @@ cat <<EOF > /tmp/permissions_heredoc
 previous_puid=\$(cat "/root/puid" 2>/dev/null || true)
 previous_pgid=\$(cat "/root/pgid" 2>/dev/null || true)
 
-# if first run (no puid or pgid files in /tmp) or the PUID or PGID env vars are different 
+# if first run (no puid or pgid files in /tmp) or the PUID or PGID env vars are different
 # from the previous run then re-apply chown with current PUID and PGID values.
 if [[ ! -f "/root/puid" || ! -f "/root/pgid" || "\${previous_puid}" != "\${PUID}" || "\${previous_pgid}" != "\${PGID}" ]]; then
 
